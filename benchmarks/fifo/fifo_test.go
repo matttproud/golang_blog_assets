@@ -16,7 +16,9 @@
 package fifo
 
 import (
+	"bytes"
 	"container/list"
+	"fmt"
 	"testing"
 )
 
@@ -149,5 +151,75 @@ func BenchmarkChan1000(b *testing.B) {
 	benchChan(b, 1000)
 }
 
-// TODO(mtp): Benchmark custom single-linked list with support for only the ops
-//            we need.
+type intListNode struct {
+	val  int
+	next *intListNode
+}
+
+type intList struct {
+	len         int
+	front, back *intListNode
+}
+
+func (l *intList) String() string {
+	var buf bytes.Buffer
+	fmt.Fprintf(&buf, "[intList len=%d", l.len)
+	for nod := l.front; nod != nil; nod = nod.next {
+		fmt.Fprintf(&buf, " %d", nod.val)
+	}
+	fmt.Fprintf(&buf, "]")
+	return buf.String()
+}
+
+func (l *intList) pushBack(v int) {
+	l.len++
+	nod := &intListNode{val: v}
+	if l.front == nil && l.back == nil {
+		l.front = nod
+		l.back = nod
+		return
+	}
+	l.back.next = nod
+	l.back = nod
+}
+
+func (l *intList) moveToBack(n *intListNode) {
+	if n.next == nil { // one-off for cap == 1
+		return
+	}
+	l.front = n.next // Assuming a FIFO and n == l.front
+	l.back.next = n
+	n.next = nil
+}
+
+// Allocate only on warmup, if at all.
+func benchIntList(b *testing.B, cap int) {
+	b.StopTimer()
+	lst := intList{}
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		if l := lst.len; l < cap {
+			lst.pushBack(i)
+		} else {
+			frnt := lst.front
+			frnt.val = i
+			lst.moveToBack(frnt)
+		}
+	}
+}
+
+func BenchmarkIntList1(b *testing.B) {
+	benchIntList(b, 1)
+}
+
+func BenchmarkIntList10(b *testing.B) {
+	benchIntList(b, 10)
+}
+
+func BenchmarkIntList100(b *testing.B) {
+	benchIntList(b, 100)
+}
+
+func BenchmarkIntList1000(b *testing.B) {
+	benchIntList(b, 1000)
+}
