@@ -115,10 +115,9 @@ func BenchmarkList1000(b *testing.B) {
 	benchList(b, 1000)
 }
 
-// Unsure if this is really valid per the language spec.  AFAIK, it offers no
-// concrete guarantee of ordering and sequencing of elements.  Works in
-// practice?  There was a thread involving RSC and Ian on the topic a while
-// back.
+// Channels act as first-in-first-out queues. For example, if one goroutine
+// sends values on a channel and a second goroutine receives them, the values
+// are received in the order sent.  -  https://golang.org/ref/spec#Channel_types
 func benchChan(b *testing.B, cap int) {
 	b.StopTimer()
 	ch := make(chan int, cap)
